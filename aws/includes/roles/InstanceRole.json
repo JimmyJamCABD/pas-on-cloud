@@ -1,0 +1,72 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters": {
+        "PrincipalForRole": { "Type": "String" },
+        "ResourceForPolicy": { "Type": "String" }
+    },
+    "Resources": {
+        "InstanceRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    { "Ref": "PrincipalForRole" }
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Path": "/",
+                "ManagedPolicyArns": [
+                    "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+                ],
+                "Policies": [
+                    {
+                        "PolicyName": "LogRolePolicy",
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "logs:CreateLogGroup",
+                                        "logs:CreateLogStream",
+                                        "logs:PutLogEvents",
+                                        "logs:DescribeLogStreams"
+                                    ],
+                                    "Resource": [
+                                        {
+                                            "Fn::Join": [
+                                                "",
+                                                [
+                                                    { "Ref": "ResourceForPolicy" },
+                                                    "logs:*:*:*"
+                                                ]
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "DeletionPolicy": "Retain"
+        }
+    },
+    "Outputs": {
+        "Arn": {
+            "Value": { "Fn::GetAtt": ["InstanceRole", "Arn"] }
+        },
+        "Name": {
+            "Value": { "Ref": "InstanceRole" }
+        }
+    }
+}

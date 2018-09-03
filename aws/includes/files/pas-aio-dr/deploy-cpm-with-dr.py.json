@@ -1,0 +1,61 @@
+{
+    "Fn::Join": [
+        "",
+        [
+            "import sys\n",
+            "import subprocess\n",
+            "\n",
+            "callArray = [",
+            "'C:\\\\CyberArk\\\\Components Registration\\\\RegisterComponent.exe',",
+            "'CPM',",
+            "'/accepteula',",
+            "'Yes',",
+            "'/vaultip',",
+            "'",
+            {
+                "Fn::Join": [
+                    "",
+                    [
+                        {
+                            "Fn::GetAtt": [
+                                "VaultMachine",
+                                "Outputs.PrivateIp"
+                            ]
+                        },
+                        ",",
+                        {
+                            "Fn::GetAtt": [
+                                "VaultDRMachine",
+                                "Outputs.PrivateIp"
+                            ]
+                        }
+                    ]
+                ]
+            },
+            "',",
+            "'/vaultport',",
+            "'1858',",
+            "'/vaultuser',",
+            "'Administrator',",
+            "'/bucketname',",
+            "'",
+            {
+                "Fn::GetAtt": [
+                    "DeployBucket",
+                    "Outputs.Id"
+                ]
+            },
+            "',",
+            "'/objectkey',",
+            "'",
+            {
+                "Fn::GetAtt": [
+                    "StoreAdminPassword",
+                    "Outputs.FileId"
+                ]
+            },
+            "']\n",
+            "sys.exit(subprocess.call(callArray, cwd='C:\\CyberArk\\Components Registration'))\n"
+        ]
+    ]
+}

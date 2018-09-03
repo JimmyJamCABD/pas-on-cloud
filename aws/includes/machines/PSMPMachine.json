@@ -1,0 +1,272 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters": {
+        "InstanceName": { "Type": "String" },
+        "InstanceSecurityGroups": { "Type": "String" },
+        "InstanceSubnetId": { "Type": "String" },
+        "ImageId": { "Type": "String" },
+        "InstanceType" : { "Type": "String" },
+        "InstanceProfile": { "Type": "String" },
+        "LogGroup": { "Type": "String" },
+        "KeyName": { "Type": "String" },
+        "activatePSMP": { "Type": "String" },
+        "HostName": { "Type": "String" }
+    },
+    "Resources": {
+        "PSMPMachine": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Ref": "InstanceName"
+                        }
+                    }
+                ],
+                "SecurityGroupIds": {
+                    "Fn::Split" : [",", { "Ref": "InstanceSecurityGroups" }]
+                },
+                "SubnetId": {
+                    "Ref": "InstanceSubnetId"
+                },
+                "ImageId": {
+                    "Ref": "ImageId"
+                },
+                "InstanceType": {
+                    "Ref": "InstanceType"
+                },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash -e\n",
+                                "/opt/aws/bin/cfn-init -v ",
+                                "         --stack ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                "         --resource PSMPMachine ",
+                                "         --configsets install_all ",
+                                "         --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "/opt/aws/bin/cfn-signal -e $? ",
+                                "         --stack ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                "         --resource PSMPMachine ",
+                                "         --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n"
+                            ]
+                        ]
+                    }
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "IamInstanceProfile": {
+                    "Ref": "InstanceProfile"
+                }
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "configSets": {
+                        "install_all": [
+                            "install_logs",
+                            "install_psmp"
+                        ]
+                    },
+                    "install_logs": {
+                        "files": {
+                            "/etc/awslogs/awslogs.conf": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "[general]\n",
+                                            "state_file= /var/awslogs/state/agent-state\n",
+                                            "[/var/log/cloud-init.log]\n",
+                                            "file = /var/log/cloud-init.log\n",
+                                            "log_group_name = ",
+                                            {
+                                                "Ref": "LogGroup"
+                                            },
+                                            "\n",
+                                            "log_stream_name = {instance_id}/cloud-init.log\n",
+                                            "datetime_format = \n",
+                                            "[/var/log/cloud-init-output.log]\n",
+                                            "file = /var/log/cloud-init-output.log\n",
+                                            "log_group_name = ",
+                                            {
+                                                "Ref": "LogGroup"
+                                            },
+                                            "\n",
+                                            "log_stream_name = {instance_id}/cloud-init-output.log\n",
+                                            "datetime_format = \n",
+                                            "[/var/log/cfn-init.log]\n",
+                                            "file = /var/log/cfn-init.log\n",
+                                            "log_group_name = ",
+                                            {
+                                                "Ref": "LogGroup"
+                                            },
+                                            "\n",
+                                            "log_stream_name = {instance_id}/cfn-init.log\n",
+                                            "datetime_format = \n"
+                                        ]
+                                    ]
+                                },
+                                "mode": "000444",
+                                "owner": "root",
+                                "group": "root"
+                            },
+                            "/etc/awslogs/awscli.conf": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "[plugins]\n",
+                                            "cwlogs = cwlogs\n",
+                                            "[default]\n",
+                                            "region = ",
+                                            {
+                                                "Ref": "AWS::Region"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                },
+                                "mode": "000444",
+                                "owner": "root",
+                                "group": "root"
+                            }
+                        },
+                        "commands": {
+                            "01_create_state_directory": {
+                                "command": "mkdir -p /var/awslogs/state"
+                            }
+                        },
+                        "services": {
+                            "sysvinit": {
+                                "awslogs": {
+                                    "enabled": "true",
+                                    "ensureRunning": "true",
+                                    "files": [
+                                        "/etc/awslogs/awslogs.conf"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "install_psmp": {
+                        "files": {
+                            "/root/CD-Image/activatePSMP": {
+                                "content": {
+                                    "Ref": "activatePSMP"
+                                }
+                            }
+                        },
+                        "commands": {
+                            "00-ChangeHostName": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "sudo hostname ",
+                                            {
+                                                "Ref": "HostName"
+                                            }
+                                        ]
+                                    ]
+                                }
+                            },
+                            "01-ChangeHostName-chmod-hosts": {
+                                "command": "sudo chmod 646 /etc/hosts"
+                            },
+                            "02-ChangeHostName-sed-hosts1": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "sudo sed -i 's/localhost\\./",
+                                            {
+                                                "Ref": "HostName"
+                                            },
+                                            "./g' /etc/hosts"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "03-ChangeHostName-sed-hosts2": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "sudo sed -i 's/localhost /",
+                                            {
+                                                "Ref": "HostName"
+                                            },
+                                            " /g' /etc/hosts"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "04-ChangeHostName-chmod-network": {
+                                "command": "sudo chmod 646 /etc/sysconfig/network"
+                            },
+                            "05-ChangeHostName-sed-network": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "sudo sed -i 's/HOSTNAME=localhost.localdomain/HOSTNAME=",
+                                            {
+                                                "Ref": "HostName"
+                                            },
+                                            "/g' /etc/sysconfig/network"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "06-ChangeHostName-chmod-hosts-revert": {
+                                "command": "sudo chmod 644 /etc/hosts"
+                            },
+                            "07-ChangeHostName-chmod-network-revert": {
+                                "command": "sudo chmod 644 /etc/sysconfig/network"
+                            },
+                            "08-Chmod": {
+                                "command": "sudo chmod 700 /root/CD-Image/activatePSMP"
+                            },
+                            "09-PSMPdeploy": {
+                                "command": "sudo /root/CD-Image/activatePSMP"
+                            },
+                            "10-ClearData": {
+                                "command": "sudo shred -u /root/CD-Image/activatePSMP"
+                            },
+                            "11-RemoveInstallationFolder": {
+                                "command": "sudo rm -rf /root/CD-Image/"
+                            }
+                        }
+                    }
+                }
+            },
+            "CreationPolicy": {
+                "ResourceSignal": {
+                    "Timeout": "PT15M"
+                }
+            }
+        }
+    },
+    "Outputs": {
+        "PrivateIp": {
+            "Value": { "Fn::GetAtt": ["PSMPMachine", "PrivateIp"] }
+        }
+    }
+}

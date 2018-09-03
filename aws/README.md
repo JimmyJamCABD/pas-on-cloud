@@ -1,15 +1,23 @@
-# Overview
+# CloudFormation Templates by Avishay
 
-CyberArk PAS CloudFormation templates were created to automate the deployment process of CyberArk Privileged Access Security AMIs. There are multiple templates to support a various deployment options, from a template that deploys a full environment to templates that provide you with the building blocks to deploy any type of architecture.
+Here is the work done for CloudFormation Templates on CyberArk
 
-| CloudFormation Template Name | Description |
-|------------------------------|-------------|
-| PAS-network-environment-template | Creation of the network environment to support the Full-PAS-Deployment template deployment |
-| Vault-Single-Deployment | Deploying a new primary Vault instance in an existing network environment |
-| DRVault-Single-Deployment | Deploying a new DR Vault in an existing network environment |
-| PAS-Component-Single-Deployment | Deploying a single PAS component CPM, PVWA, PSM or PSMP instance in an existing network environment |
-| Full-PAS-Deployment | Deploying a full PAS environment, where each component is deployed in a separated instance (Vault, DR Vault, PVWA, CPM, PSM and PSMP) |
-| PAS-AIO-network-environment-template | Creation of the network environment to support the PAS-AIO-Deployment template deployment |
-| PAS-AIO-dr-template | Deploying PAS as an all in one configuration, where a single instance contain PVWA, PSM and CPM, Vault instance and DR Vault instance |
-| PAS-AIO-template | Deploying PAS as an all in one configuration, where a single instance contain PVWA, PSM and CPM and Vault instance |
+### Prerequisites
 
+AWS CLI initialized on the command line
+
+## Running The Templates
+
+The `create-template.bat` file accept 2 arguments: template, and parameters.
+Both parameters should be JSON files.
+
+The template will be created as a ChangeSet with a Random name for the ChangeSet and the Stack, so you should check out CloudFormation to see what is going to be the stack name.
+
+```
+cd cli
+.\create-template.bat Vault-Single-Deployment vault-sd-parameters
+```
+
+## Authors
+
+* **Avishay Bar** - [avishayil](https://github.com/avishayil)

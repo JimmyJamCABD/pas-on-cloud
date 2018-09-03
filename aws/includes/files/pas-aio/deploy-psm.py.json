@@ -1,0 +1,54 @@
+{
+    "Fn::Join": [
+        "",
+        [
+            "import sys\n",
+            "import subprocess\n",
+            "import urllib2\n",
+            "\n",
+            "callArray = [",
+            "'C:\\\\CyberArk\\\\Components Registration\\\\RegisterComponent.exe',",
+            "'PSM',",
+            "'/accepteula',",
+            "'Yes',",
+            "'/vaultip',",
+            "'",
+            {
+                "Fn::GetAtt": [
+                    "VaultMachine",
+                    "Outputs.PrivateIp"
+                ]
+            },
+            "',",
+            "'/vaultport',",
+            "'1858',",
+            "'/vaultuser',",
+            "'Administrator',",
+            "'/bucketname',",
+            "'",
+            {
+                "Fn::GetAtt": [
+                    "DeployBucket",
+                    "Outputs.Id"
+                ]
+            },
+            "',",
+            "'/objectkey',",
+            "'",
+            {
+                "Fn::GetAtt": [
+                    "StoreAdminPassword",
+                    "Outputs.FileId"
+                ]
+            },
+            "']\n",
+            "properties = urllib2.urlopen('http://169.254.169.254/latest/meta-data').read()\n",
+            "if 'public-ipv4' in properties:\n",
+            "\tipv4 = urllib2.urlopen('http://169.254.169.254/latest/meta-data/public-ipv4').read()\n",
+            "\tif ipv4 and ipv4 <> 'none':\n",
+            "\t\tcallArray.append('/psmpublicip')\n",
+            "\t\tcallArray.append(ipv4)\n",
+            "sys.exit(subprocess.call(callArray, cwd='C:\\CyberArk\\Components Registration'))\n"
+        ]
+    ]
+}

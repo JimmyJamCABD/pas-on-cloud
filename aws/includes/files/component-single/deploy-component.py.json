@@ -1,0 +1,84 @@
+{
+    "Fn::Join": [
+        "",
+        [
+            "import sys\n",
+            "import subprocess\n",
+            "import urllib2\n",
+            "import argparse\n",
+            "parser = argparse.ArgumentParser()\n",
+            "parser.add_argument('-c', action='store', dest='component')\n",
+            "args = parser.parse_args()",
+            "\n",
+            "callArray = [",
+            "'C:\\\\CyberArk\\\\Components Registration\\\\RegisterComponent.exe',",
+            "args.component,",
+            "'/accepteula',",
+            "'Yes',",
+            "'/vaultip',",
+            "'",
+            {
+                "Ref": "VaultPrivateIP"
+            },
+            {
+                "Fn::If": [
+                    "DRValueEmpty",
+                    {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "',"
+                            ]
+                        ]
+                    },
+                    {
+                        "Fn::Join": [
+                            "",
+                            [
+                                ",",
+                                {
+                                    "Ref": "DRPrivateIP"
+                                },
+                                "',"
+                            ]
+                        ]
+                    }
+                ]
+            },
+            "'/vaultport',",
+            "'1858',",
+            "'/vaultuser',",
+            "'",
+            {
+                "Ref": "VaultAdminUser"
+            },
+            "',",
+            "'/bucketname',",
+            "'",
+            {
+                "Fn::GetAtt": [
+                    "DeployBucket",
+                    "Outputs.Id"
+                ]
+            },
+            "',",
+            "'/objectkey',",
+            "'",
+            {
+                "Fn::GetAtt": [
+                    "StoreAdminPassword",
+                    "Outputs.FileId"
+                ]
+            },
+            "']\n",
+            "properties = urllib2.urlopen('http://169.254.169.254/latest/meta-data').read()\n",
+            "if args.component == 'PSM':\n",
+            "\tif 'public-ipv4' in properties:\n",
+            "\t\tipv4 = urllib2.urlopen('http://169.254.169.254/latest/meta-data/public-ipv4').read()\n",
+            "\t\tif ipv4 and ipv4 <> 'none':\n",
+            "\t\t\tcallArray.append('/psmpublicip')\n",
+            "\t\t\tcallArray.append(ipv4)\n",
+            "sys.exit(subprocess.call(callArray, cwd='C:\\CyberArk\\Components Registration'))\n"
+        ]
+    ]
+}

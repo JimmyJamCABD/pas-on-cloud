@@ -1,0 +1,16 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Resources": {
+        "DeployBucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+                "AccessControl": "Private"
+            }
+        }
+    },
+    "Outputs": {
+        "Id": {
+            "Value": { "Ref": "DeployBucket" }
+        }
+    }
+}

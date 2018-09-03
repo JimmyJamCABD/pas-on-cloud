@@ -1,0 +1,24 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters": {
+        "InstanceRole": { "Type": "String" }
+    },
+    "Resources": {
+        "InstanceProfile": {
+            "Type": "AWS::IAM::InstanceProfile",
+            "Properties": {
+                "Path": "/",
+                "Roles": [
+                    {
+                        "Ref": "InstanceRole"
+                    }
+                ]
+            }
+        }
+    },
+    "Outputs": {
+        "Name": {
+            "Value": { "Ref": "InstanceProfile" }
+        }
+    }
+}

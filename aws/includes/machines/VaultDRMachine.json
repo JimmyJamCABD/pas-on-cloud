@@ -1,0 +1,140 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters": {
+        "VaultInstanceName": { "Type": "String" },
+        "VaultInstanceSecurityGroups": { "Type": "String" },
+        "DRInstanceSubnetId": { "Type": "String" },
+        "ImageId": { "Type": "String" },
+        "VaultInstanceType" : { "Type": "String" },
+        "InstanceProfile": { "Type": "String" },
+        "LogGroup": { "Type": "String" },
+        "InstanceRole": { "Type": "String" },
+        "KeyName": { "Type": "String" },
+        "AWSEC2WindowsCloudWatchJSON": { "Type": "String" },
+        "DeployPy": { "Type": "String" },
+        "VaultHostName": { "Type": "String" }
+    },
+    "Resources": {
+        "VaultDRMachine": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Ref": "VaultInstanceName"
+                        }
+                    }
+                ],
+                "SecurityGroupIds": {
+                    "Fn::Split" : [",", { "Ref": "VaultInstanceSecurityGroups" }]
+                },
+                "SubnetId": {
+                    "Ref": "DRInstanceSubnetId"
+                },
+                "ImageId": {
+                    "Ref": "ImageId"
+                },
+                "InstanceType": {
+                    "Ref": "VaultInstanceType"
+                },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "<script>\n",
+                                "cfn-init.exe -v -s ",
+                                {
+                                    "Ref": "AWS::StackId"
+                                },
+                                " -r VaultDRMachine",
+                                " --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "cfn-signal.exe -e %ERRORLEVEL% ",
+                                "  --stack ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                "  --resource VaultDRMachine",
+                                "  --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "</script>"
+                            ]
+                        ]
+                    }
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "IamInstanceProfile": {
+                    "Ref": "InstanceProfile"
+                }
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "config": {
+                        "files": {
+                            "C:\\Program Files\\Amazon\\SSM\\Plugins\\awsCloudWatch\\AWS.EC2.Windows.CloudWatch.json": {
+                                "content": {
+                                    "Ref": "AWSEC2WindowsCloudWatchJSON"
+                                }
+                            },
+                            "C:\\deploy.py": {
+                                "content": {
+                                    "Ref": "DeployPy"
+                                }
+                            }
+                        },
+                        "commands": {
+                            "0-enableSSM": {
+                                "command": "powershell.exe -Command \"Set-Service -Name AmazonSSMAgent -StartupType Automatic\"",
+                                "waitAfterCompletion": "0"
+                            },
+                            "1-restartSSM": {
+                                "command": "powershell.exe -Command \"Restart-Service AmazonSSMAgent\"",
+                                "waitAfterCompletion": "30"
+                            },
+                            "2-deploy": {
+                                "command": "C:\\Python27\\python.exe C:\\deploy.py",
+                                "waitAfterCompletion": "0"
+                            },
+                            "3-ChangeHostName": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "powershell.exe -Command Rename-Computer -NewName ",
+                                            {
+                                                "Ref": "VaultHostName"
+                                            },
+                                            " -Force -Restart"
+                                        ]
+                                    ]
+                                },
+                                "waitAfterCompletion": "forever"
+                            }
+                        }
+                    }
+                }
+            },
+            "CreationPolicy": {
+                "ResourceSignal": {
+                    "Timeout": "PT15M"
+                }
+            },
+            "DeletionPolicy": "Retain"
+        }
+    },
+    "Outputs": {
+        "PrivateIp": {
+            "Value": { "Fn::GetAtt": ["VaultDRMachine", "PrivateIp"] }
+        }
+    }
+}

@@ -1,0 +1,34 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters": {
+        "InstanceRole": {
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "VaultInstancesKMSPolicy": {
+            "Type": "AWS::IAM::Policy",
+            "Properties": {
+                "PolicyName": "VaultInstancesKMSAccess",
+                "PolicyDocument": {
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "kms:Encrypt",
+                                "kms:Decrypt"
+                            ],
+                            "Resource": "*"
+                        }
+                    ]
+                },
+                "Roles": [
+                    {
+                        "Ref": "InstanceRole"
+                    }
+                ]
+            },
+            "DeletionPolicy": "Retain"
+        }
+    }
+}

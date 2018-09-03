@@ -1,0 +1,170 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters": {
+        "InstanceName": { "Type": "String" },
+        "InstanceSecurityGroups": { "Type": "String" },
+        "InstanceSubnetId": { "Type": "String" },
+        "ImageId": { "Type": "String" },
+        "InstanceType" : { "Type": "String" },
+        "InstanceProfile": { "Type": "String" },
+        "LogGroup": { "Type": "String" },
+        "KeyName": { "Type": "String" },
+        "AWSEC2WindowsCloudWatchJSON": { "Type": "String" },
+        "deployCPM": { "Type": "String" },
+        "deployPVWA":  { "Type": "String" },
+        "deployPSM":  { "Type": "String" },
+        "HostName": { "Type": "String" }
+    },
+    "Resources": {
+        "ComponentsMachine": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": { "Ref": "InstanceName" }
+                    }
+                ],
+                "SecurityGroupIds": {
+                    "Fn::Split" : [",", { "Ref": "InstanceSecurityGroups" }]
+                },
+                "SubnetId": { "Ref": "InstanceSubnetId" },
+                "ImageId": { "Ref": "ImageId" },
+                "InstanceType": { "Ref": "InstanceType" },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "<script>\n",
+                                "cfn-init.exe -v -s ",
+                                {
+                                    "Ref": "AWS::StackId"
+                                },
+                                " -r ComponentsMachine",
+                                " --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "cfn-signal.exe -e %ERRORLEVEL% ",
+                                "  --stack ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                "  --resource ComponentsMachine",
+                                "  --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "</script>"
+                            ]
+                        ]
+                    }
+                },
+                "KeyName": { "Ref": "KeyName" },
+                "IamInstanceProfile": { "Ref": "InstanceProfile" }
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "config": {
+                        "files": {
+                            "C:\\Program Files\\Amazon\\SSM\\Plugins\\awsCloudWatch\\AWS.EC2.Windows.CloudWatch.json": {
+                                "content": {
+                                    "Ref": "AWSEC2WindowsCloudWatchJSON"
+                                }
+                            },                     
+                            "C:\\deployCPM.py": {
+                                "content": {
+                                    "Ref": "deployCPM"
+                                }
+                            },
+                            "C:\\deployPVWA.py": {
+                                "content": {
+                                    "Ref": "deployPVWA"
+                                }
+                            },
+                            "C:\\deployPSM.py": {
+                                "content": {
+                                    "Ref": "deployPSM"
+                                }
+                            }
+                        },
+                        "commands": {
+                            "00-enableSSM": {
+                                "command": "powershell.exe -Command \"Set-Service -Name AmazonSSMAgent -StartupType Automatic\"",
+                                "waitAfterCompletion": "0"
+                            },
+                            "01-restartSSM": {
+                                "command": "powershell.exe -Command \"Restart-Service AmazonSSMAgent\"",
+                                "waitAfterCompletion": "30"
+                            },                            
+                            "02-CPMdeploy": {
+                                "command": "C:\\Python27\\python.exe C:\\deployCPM.py",
+								"waitAfterCompletion": "0"
+                            },
+                            "02a-ResetUserPassword": {
+                                "command": "powershell.exe -Command Set-LocalUser -Name 'PasswordManagerUser' -PasswordNeverExpires $true -UserMayChangePassword $false",
+                                "waitAfterCompletion": "0"
+                            },
+                            "02b-ResetUserPassword": {
+                                "command": "powershell.exe -Command Set-LocalUser -Name 'PVWAReportsUser' -PasswordNeverExpires $true -UserMayChangePassword $false"
+                            },
+                            "03-CPMServiceConfig": {
+                                "command": "sc config \"CyberArk Password Manager\" start=auto",
+								"waitAfterCompletion": "0"
+                            },
+                            "04-CPMScannerServiceConfig": {
+                                "command": "sc config \"CyberArk Central Policy Manager Scanner\" start=auto",
+								"waitAfterCompletion": "0"
+                            },
+                            "05-CPMServiceStart": {
+                                "command": "sc start \"CyberArk Password Manager\"",
+								"waitAfterCompletion": "0"
+                            },
+                            "06-CPMScannerServiceStart": {
+                                "command": "sc start \"CyberArk Central Policy Manager Scanner\"",
+								"waitAfterCompletion": "0"
+                            },
+                            "07-PVWAdeploy": {
+                                "command": "C:\\Python27\\python.exe C:\\deployPVWA.py",
+								"waitAfterCompletion": "0"
+                            },
+                            "08-StartAppPool": {
+                                "command": "powershell -command \"& {&'Import-Module' WebAdministration}\"; \"& {&'Start-WebAppPool' -Name PasswordVaultWebAccessPool}\"; \"& {&'Set-ItemProperty' -Path IIS:\\AppPools\\PasswordVaultWebAccessPool -Name autoStart -Value 'true'}\"",
+								"waitAfterCompletion": "0"
+                            },
+                            "09-ScheduledTasksServiceConfig": {
+                                "command": "sc config \"CyberArk Scheduled Tasks\" start=auto",
+								"waitAfterCompletion": "0"
+                            },
+                            "10-ScheduledTasksServiceStart": {
+                                "command": "sc start \"CyberArk Scheduled Tasks\"",
+								"waitAfterCompletion": "0"
+                            },
+                            "11-PSMdeploy": {
+                                "command": "C:\\Python27\\python.exe C:\\deployPSM.py",
+								"waitAfterCompletion": "0"
+                            },
+                            "12-PSMServiceConfig": {
+                                "command": "sc config \"Cyber-Ark Privileged Session Manager\" start=auto",
+								"waitAfterCompletion": "0"
+                            }
+                        }
+                    }
+                }
+            },
+            "CreationPolicy": {
+                "ResourceSignal": {
+                    "Timeout": "PT15M"
+                }
+            }
+        }
+    },
+    "Outputs": {
+        "PrivateIp": {
+            "Value": { "Fn::GetAtt": ["ComponentsMachine", "PrivateIp"] }
+        }
+    }
+}

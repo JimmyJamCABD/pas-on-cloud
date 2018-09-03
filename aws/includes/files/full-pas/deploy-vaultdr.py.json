@@ -1,0 +1,126 @@
+{
+    "Fn::Join": [
+        "",
+        [
+            "import boto3\n",
+            "import sys\n",
+            "import subprocess\n",
+            "\n",
+            "def fetchPassword(bucket,filePath):\n",
+            "\ts3Client = boto3.client('s3', config= boto3.session.Config(signature_version='s3v4'))\n",
+            "\tobjectResponse = s3Client.get_object(\n",
+            "\t\tBucket = bucket,\n",
+            "\t\tKey = filePath\n",
+            "\t)\n",
+            "\treturn objectResponse['Body'].read()\n",
+            "\n",
+            "def downloadFile(bucket,filePath,target):\n",
+            "\ts3Client = boto3.client('s3')\n",
+            "\ts3Client.download_file(\n",
+            "\t\tBucket = bucket,\n",
+            "\t\tKey = filePath,\n",
+            "\t\tFilename = target\n",
+            "\t)\n",
+            "\treturn target\n",
+            "\n",
+            "masterp = fetchPassword('",
+            {
+                "Fn::GetAtt": [
+                    "DeployBucket",
+                    "Outputs.Id"
+                ]
+            },
+            "','",
+            {
+                "Fn::GetAtt": [
+                    "StoreMasterPassword",
+                    "Outputs.FileId"
+                ]
+            },
+            "')\n",
+            "adminp = fetchPassword('",
+            {
+                "Fn::GetAtt": [
+                    "DeployBucket",
+                    "Outputs.Id"
+                ]
+            },
+            "','",
+            {
+                "Fn::GetAtt": [
+                    "StoreAdminPassword",
+                    "Outputs.FileId"
+                ]
+            },
+            "')\n",
+            "drp = fetchPassword('",
+            {
+                "Fn::GetAtt": [
+                    "DeployBucket",
+                    "Outputs.Id"
+                ]
+            },
+            "','",
+            {
+                "Fn::GetAtt": [
+                    "StoreDRPassword",
+                    "Outputs.FileId"
+                ]
+            },
+            "')\n",
+            "\n",
+            "licensef = downloadFile('",
+            {
+                "Ref": "VaultFilesBucket"
+            },
+            "','",
+            {
+                "Ref": "LicenseFile"
+            },
+            "','C:\\\\vaultLicense.xml')\n",
+            "publickeyf = downloadFile('",
+            {
+                "Ref": "VaultFilesBucket"
+            },
+            "','",
+            {
+                "Ref": "RecoveryPublicKey"
+            },
+            "','C:\\\\recoveryPublic.key')\n",
+            "\n",
+            "vaultIp = '",
+            {
+                "Fn::GetAtt": [
+                    "VaultMachine",
+                    "Outputs.PrivateIp"
+                ]
+            },
+            "'\n",
+            "sys.exit(subprocess.call([",
+            "'C:\\\\Program files (x86)\\\\PrivateArk\\\\Server\\\\CAVaultManager.exe',",
+            "'PostInstall',",
+            "'/AdminPass',",
+            "adminp,",
+            "'/MasterPass',",
+            "masterp,",
+            "'/RecPub',",
+            "publickeyf,",
+            "'/IsPrimaryOrDR',",
+            "'DR',",
+            "'/PrimaryVaultIP',",
+            "vaultIp,",
+            "'/DRPassword',",
+            "drp,",
+            "'/EnableFailOver',",
+            "'/LicensePath',",
+            "licensef,",
+            "'/AcceptEULA',",
+            "'yes',",
+            "'/KMSRegion','",
+            {
+                "Ref": "AWS::Region"
+            },
+            "']))\n"
+        ]
+    ]
+}

@@ -1,0 +1,80 @@
+{
+    "Fn::Join": [
+        "",
+        [
+            "#!/bin/bash -e\n",
+            "chmod 700 /root/CD-Image/register_and_activation.sh\n",
+            "aws configure set default.s3.signature_version s3v4\n",
+            "aws s3api get-object --bucket ",
+            {
+                "Fn::GetAtt": [
+                    "DeployBucket",
+                    "Outputs.Id"
+                ]
+            },
+            " --key ",
+            {
+                "Fn::GetAtt": [
+                    "StoreAdminPassword",
+                    "Outputs.FileId"
+                ]
+            },
+            " /root/CD-Image/temppassword\n",
+            "echo Object successfully retrieved from S3 bucket.\n",
+            "/opt/CARKpsmp/bin/createcredfile /root/CD-Image/user.cred Password -Username ",
+            {
+                "Ref": "VaultAdminUser"
+            },
+            " -Password $(cat /root/CD-Image/temppassword) -Hostname\n",
+            "echo Credentials file successfully created.\n",
+            "shred -u /root/CD-Image/temppassword\n",
+            "aws s3api delete-object --bucket ",
+            {
+                "Fn::GetAtt": [
+                    "DeployBucket",
+                    "Outputs.Id"
+                ]
+            },
+            " --key ",
+            {
+                "Fn::GetAtt": [
+                    "StoreAdminPassword",
+                    "Outputs.FileId"
+                ]
+            },
+            "\n",
+            "echo Object successfully deleted from S3 bucket.\n",
+            "/root/CD-Image/register_and_activation.sh /root/CD-Image/user.cred ",
+            {
+                "Fn::If": [
+                    "DRValueEmpty",
+                    {
+                        "Fn::Join": [
+                            "",
+                            [
+                                {
+                                    "Ref": "VaultPrivateIP"
+                                }
+                            ]
+                        ]
+                    },
+                    {
+                        "Fn::Join": [
+                            "",
+                            [
+                                {
+                                    "Ref": "VaultPrivateIP"
+                                },
+                                ",",
+                                {
+                                    "Ref": "DRPrivateIP"
+                                }
+                            ]
+                        ]
+                    }
+                ]
+            },
+            " $(curl http://169.254.169.254/latest/meta-data/instance-id) y\n"
+        ]
+    ]
+}

@@ -1,0 +1,142 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters": {
+        "InstanceName": { "Type": "String" },
+        "InstanceSecurityGroups": { "Type": "String" },
+        "InstanceSubnetId": { "Type": "String" },
+        "ImageId": { "Type": "String" },
+        "InstanceType" : { "Type": "String" },
+        "InstanceProfile": { "Type": "String" },
+        "LogGroup": { "Type": "String" },
+        "KeyName": { "Type": "String" },
+        "AWSEC2WindowsCloudWatchJSON": { "Type": "String" },
+        "DeployPy": { "Type": "String" },
+        "HostName": { "Type": "String" }
+    },
+    "Resources": {
+        "PSMMachine": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Ref": "InstanceName"
+                        }
+                    }
+                ],
+                "SecurityGroupIds": {
+                    "Fn::Split" : [",", { "Ref": "InstanceSecurityGroups" }]
+                },
+                "SubnetId": {
+                    "Ref": "InstanceSubnetId"
+                },
+                "ImageId": {
+                    "Ref": "ImageId"
+                },
+                "InstanceType": {
+                    "Ref": "InstanceType"
+                },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "<script>\n",
+                                "cfn-init.exe -v -s ",
+                                {
+                                    "Ref": "AWS::StackId"
+                                },
+                                " -r PSMMachine",
+                                " --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "cfn-signal.exe -e %ERRORLEVEL% ",
+                                "  --stack ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                "  --resource PSMMachine",
+                                "  --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "</script>"
+                            ]
+                        ]
+                    }
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "IamInstanceProfile": {
+                    "Ref": "InstanceProfile"
+                }
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "config": {
+                        "files": {
+                            "C:\\Program Files\\Amazon\\SSM\\Plugins\\awsCloudWatch\\AWS.EC2.Windows.CloudWatch.json": {
+                                "content": {
+                                    "Ref": "AWSEC2WindowsCloudWatchJSON"
+                                }
+                            },
+                            "C:\\deploy.py": {
+                                "content": {
+                                    "Ref": "DeployPy"
+                                }
+                            }
+                        },
+                        "commands": {
+                            "0-enableSSM": {
+                                "command": "powershell.exe -Command \"Set-Service -Name AmazonSSMAgent -StartupType Automatic\"",
+                                "waitAfterCompletion": "0"
+                            },
+                            "1-restartSSM": {
+                                "command": "powershell.exe -Command \"Restart-Service AmazonSSMAgent\"",
+                                "waitAfterCompletion": "30"
+                            },
+                            "2-deploy": {
+                                "command": "C:\\Python27\\python.exe C:\\deploy.py -c PSM",
+                                "waitAfterCompletion": "0"
+                            },
+                            "3-PSMserviceConfig": {
+                                "command": "sc config \"Cyber-Ark Privileged Session Manager\" start=auto",
+                                "waitAfterCompletion": "0"
+                            },
+                            "4-ChangeHostName": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "powershell.exe -Command Rename-Computer -NewName ",
+                                            {
+                                                "Ref": "HostName"
+                                            },
+                                            " -Force -Restart"
+                                        ]
+                                    ]
+                                },
+                                "waitAfterCompletion": "forever"
+                            }
+                        }
+                    }
+                }
+            },
+            "CreationPolicy": {
+                "ResourceSignal": {
+                    "Timeout": "PT15M"
+                }
+            }
+        }
+    },
+    "Outputs": {
+        "PrivateIp": {
+            "Value": { "Fn::GetAtt": ["PSMMachine", "PrivateIp"] }
+        }
+    }
+}
